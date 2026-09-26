@@ -2,6 +2,8 @@
 
 These recipes are project-neutral. They coordinate the generic skills; they do not replace a live model, a vendor drawing, or an as-built measurement.
 
+Script paths below use the Codex layout (`.agents/skills/...`). A Claude Code install keeps the same files under `.claude/skills/...`, and `$skill-name` means the skill of that name.
+
 ## Session and Beads
 
 ```powershell
@@ -17,7 +19,7 @@ Create an issue before changing a CAD release, BOM, or delivered artifact. For r
 
 ## Fusion read-only audit
 
-Use `mcp__fusion__fusion_mcp_read` with `queryType="document", operation="open"` first. Then use `mcp__fusion__fusion_mcp_execute` with a Python `run(_context)` script to inspect occurrence/body names, bounding boxes, planar faces, cylinders, hole axes, and interference/clearance. Convert Fusion centimeter API units to millimeters with `* 10`. Do not call Fusion save unless explicitly authorized.
+Use `fusion_mcp_read` with `queryType="document", operation="open"` first. Then use `fusion_mcp_execute` with a Python `run(_context)` script to inspect occurrence/body names, bounding boxes, planar faces, cylinders, hole axes, and interference/clearance. Convert Fusion centimeter API units to millimeters with `* 10`. Do not call Fusion save unless explicitly authorized. Tool names are given without the client prefix, which depends on the Fusion MCP server name in your client (for example `mcp__fusion__fusion_mcp_read` or `mcp__Autodesk_Fusion__fusion_mcp_read`).
 
 For an opposing planar interface, measure the two functional faces rather than relying only on occurrence bounding boxes:
 
@@ -36,7 +38,7 @@ Record entity paths, axis direction, release/version, calculation, and uncertain
   -Label 'inside interface gap' -MeasuredMm 740 -ModelMm 738.32 -ToleranceMm 0.50
 ```
 
-The script reports the signed delta and a stop/recheck recommendation. Use multiple physical points and `$physical-fitup` when the joint may be skewed; never use bolts to bend parts into agreement.
+The script reports the signed delta and a stop/recheck recommendation; on macOS or Linux run it with `pwsh -File`. Use multiple physical points and `$physical-fitup` when the joint may be skewed; never use bolts to bend parts into agreement.
 
 ## BOM and sourcing
 
@@ -52,10 +54,10 @@ Preserve the annotated source. Map comments to page and rectangle before editing
 
 ## PDF authoring and rendering
 
-Immediately before the first PDF create/edit command in a turn, run the marker exactly once:
+If your runtime's `pdf` skill provides an artifact marker, run it exactly once immediately before the first PDF create/edit command in a turn. For the Codex `pdf` plugin it lives under `$CODEX_HOME/plugins/cache/<publisher>/pdf/<version>/skills/pdf/container_tools/`; resolve the installed path rather than copying a machine-specific one:
 
 ```powershell
-node 'C:\Users\mitya\.codex\plugins\cache\openai-primary-runtime\pdf\26.819.11345\skills\pdf\container_tools\mark_artifact_operation_started.mjs' --operation-kind edit --expected-output-count 1 --output-format pdf
+node '<pdf-skill-dir>\container_tools\mark_artifact_operation_started.mjs' --operation-kind edit --expected-output-count 1 --output-format pdf
 ```
 
 Render the project source with configurable paths:
@@ -64,6 +66,13 @@ Render the project source with configurable paths:
 & '.agents\skills\assembly-manual-qa\scripts\render_manual.ps1' `
   -HtmlPath 'tmp\pdfs\assembly_manual.html' `
   -OutputPdf 'output\pdf\Assembly_Manual_ASSEMBLY-YYYY-MM-DD.pdf'
+```
+
+On macOS or Linux, the POSIX script takes the same paths positionally and uses Chrome, Edge, or Chromium (`CHROME_PATH` overrides the choice):
+
+```sh
+sh .agents/skills/assembly-manual-qa/scripts/render_manual.sh \
+  tmp/pdfs/assembly_manual.html output/pdf/Assembly_Manual_ASSEMBLY-YYYY-MM-DD.pdf
 ```
 
 Render all pages with Poppler (`pdftoppm`) or the project's equivalent helper. Inspect a contact sheet and every changed page at full resolution. Confirm page count, footer/revision, no clipping/overlap, and no unintended `/FreeText` annotations in a clean PDF.
